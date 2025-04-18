@@ -12,7 +12,7 @@ from torch.utils.data import Dataset, DataLoader
 
 
 #This is the directory where the folders of images are stored, could be different directory for each person
-fileDir = "../EyeDiseaseProject/normalizedSize/normalizedSize"
+fileDir = "normalizedSize/normalizedSize"
 
 #Transforms images in grayscale and to a tensor to be able to load into dataloader
 transform = transforms.Compose([
@@ -22,7 +22,7 @@ transform = transforms.Compose([
 ])
 dataset = datasets.ImageFolder(fileDir, transform=transform)
 
-#print(dataset)
+print(dataset[0][0])
 
 # Printing to see what number corresponds to what label
 
@@ -30,22 +30,15 @@ dataset = datasets.ImageFolder(fileDir, transform=transform)
 # print(dataset.class_to_idx)
 
 
-dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
-
-# Testing to see images are random in the data loader
-
+# dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+#
+# # Testing to see images are random in the data loader
 # images, labels = next(iter(dataloader))
+# for i in range(10):
 #
-#
-#
-# img_tensor = images[0]  # Shape: [1, H, W]
-# img = img_tensor.squeeze(0).numpy()  # Shape: [H, W]
-#
-# plt.imshow(img, cmap='gray')  # Use grayscale colormap
-# plt.title(f"Label: {labels[0]}")
-# plt.axis('off')
-# plt.show()
-
-
-
-exit(0)
+#     img_tensor = images[i]  # Shape: [1, H, W]
+#     img = img_tensor.squeeze(0).numpy()  # Shape: [H, W]
+#     plt.imshow(img, cmap='gray')  # Use grayscale colormap
+#     plt.title(f"Label: {labels[i]}")
+#     plt.axis('off')
+#     plt.show()
