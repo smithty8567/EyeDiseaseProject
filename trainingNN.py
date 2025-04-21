@@ -12,6 +12,7 @@ from torch.nn import functional as F
 import pandas as pd
 from tqdm import tqdm
 
+
 class CNN(Dataset):
     def __init__(self):
         fileDir = "normalizedSize"
@@ -69,7 +70,7 @@ class EyeDisease(nn.Module):
         x = F.max_pool2d(x, (2, 2))  # 8 x 32 x 32
         x = torch.flatten(x, 1)
         x = F.relu(self.h2_to_h3(x))  # 8
-        return (self.h3_to_out(x)) # 4
+        return self.h3_to_out(x) # 4
 
 
 def trainNN(epochs=15, batch_size=16, lr=0.002, display_test_acc=False):
@@ -120,5 +121,6 @@ def trainNN(epochs=15, batch_size=16, lr=0.002, display_test_acc=False):
             predictions = torch.argmax(number_classify(cnn.train_images), dim=1)  # Get the prediction
             correct = (predictions == cnn.train_labels).sum().item()
             print(f"Accuracy on train set: {correct / len(cnn.train_labels):.4f}")
+    return number_classify()
 
 trainNN()
