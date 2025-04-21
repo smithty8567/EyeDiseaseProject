@@ -7,17 +7,21 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from os import walk
 from torchvision import datasets, transforms
+from torchvision.transforms import v2
 from torch.utils.data import Dataset, DataLoader
 
 
 
 #This is the directory where the folders of images are stored, could be different directory for each person
-fileDir = "normalizedSize/normalizedSize"
+fileDir = "normalizedSize"
 
 #Transforms images in grayscale and to a tensor to be able to load into dataloader
-transform = transforms.Compose([
-    transforms.Grayscale(num_output_channels=1),
-    transforms.ToTensor(),  # Convert PIL image to Tensor
+transform = v2.Compose([
+    v2.Grayscale(num_output_channels=1),
+    v2.ToTensor(),  # Convert PIL image to Tensor
+    v2.RandomHorizontalFlip(p=0.25),
+    v2.RandomVerticalFlip(p=0.25),
+    v2.RandomRotation(degrees=360)
     # Add other transforms here, like normalization
 ])
 dataset = datasets.ImageFolder(fileDir, transform=transform)
