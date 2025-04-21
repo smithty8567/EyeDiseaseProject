@@ -18,43 +18,57 @@ class CNN(Dataset):
         # Transforms images in grayscale and to a tensor to be able to load into dataloader
         transform = transforms.Compose([
             transforms.Grayscale(num_output_channels=1),
+
             transforms.ToTensor(),  # Convert PIL image to Tensor
-            # Add other transforms here, like normalization
+
+
         ])
         df = datasets.ImageFolder(fileDir, transform=transform)
+
         loader = DataLoader(df, batch_size=len(df), shuffle=False)
         images, labels = next(iter(loader))
-        self.train_numbers = images.view(-1,1,128,128)
-        print(self.train_numbers.size())
+
+        self.train_images = images.view(-1,1,128,128)
+        #print(self.train_numbers.size())
         self.train_labels = labels
-        print(self.train_labels.size())
+
+        # # Standard deviation of all columns
+        # std_all = self.train_images.std()
+        # print("Standard deviation of all columns:\n", std_all)
+        #print(self.train_labels.size())
         #exit(10)
-        # self.test_numbers = torch.tensor(df[3500:][0]).view(-1, 1, 128, 128)
-        # self.test_labels = torch.tensor(df[3500:][1])
 
         self.len = len(self.train_labels)
 
     def __getitem__(self, item):
-        return self.train_numbers[item], self.train_labels[item]
+        return self.train_images[item], self.train_labels[item]
 
     def __len__(self):
         return self.len
 
 
-class NumberClassify(nn.Module):
+class EyeDisease(nn.Module):
     def __init__(self):
         # Call the constructor of the super class
-        super(NumberClassify, self).__init__()
-
-        self.in_to_out = nn.Linear(128*128, 4) #
+        super(EyeDisease, self).__init__()
+        self.in_to_h1 = nn.Conv2d(1, 16, (5, 5), padding=(2, 2))  # 16 x 128 x 128
+        # Maxpool2d -> 16 x 64 x 64
+        self.h1_to_h2 = nn.Conv2d(16, 8, (3, 3), padding=(1, 1))  # 8 x 64 x 64
+        # Maxpool2d -> 8 x 32 x 32
+        self.h2_to_h3 = nn.Linear(8*32*32, 8) #
+        self.h3_to_out = nn.Linear(8, 4)  #
 
     def forward(self, x):
+        x = F.relu(self.in_to_h1(x))  # 16 x 128 x 128
+        x = F.max_pool2d(x, (2, 2))  # 16 x 64 x 64
+        x = F.relu(self.h1_to_h2(x))  # 8 x 64 x 64
+        x = F.max_pool2d(x, (2, 2))  # 8 x 32 x 32
+        x = torch.flatten(x, 1)
+        x = F.relu(self.h2_to_h3(x))  # 8
+        return (self.h3_to_out(x)) # 4
 
-        x = torch.flatten(x,1)
-        return self.in_to_out(x)
 
-
-def trainNN(epochs=10, batch_size=16, lr=0.001, display_test_acc=False):
+def trainNN(epochs=15, batch_size=16, lr=0.002, display_test_acc=False):
     # load dataset
     cnn = CNN()
 
@@ -65,7 +79,7 @@ def trainNN(epochs=10, batch_size=16, lr=0.001, display_test_acc=False):
     #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # create CNN
-    number_classify = NumberClassify()#.to(device)
+    number_classify = EyeDisease()#.to(device)
     print(f"Total parameters: {sum(param.numel() for param in number_classify.parameters())}")
 
     # loss function
@@ -86,9 +100,9 @@ def trainNN(epochs=10, batch_size=16, lr=0.001, display_test_acc=False):
 
             optimizer.zero_grad()
 
-            input = number_classify(x)
+            output = number_classify(x)
 
-            loss = cross_entropy(input, y)
+            loss = cross_entropy(output, y)
 
             loss.backward()
 
@@ -99,7 +113,7 @@ def trainNN(epochs=10, batch_size=16, lr=0.001, display_test_acc=False):
         running_loss = 0.0
         # if display_test_acc:
         with torch.no_grad():
-            predictions = torch.argmax(number_classify(cnn.train_numbers), dim=1)  # Get the prediction
+            predictions = torch.argmax(number_classify(cnn.train_images), dim=1)  # Get the prediction
             correct = (predictions == cnn.train_labels).sum().item()
             print(f"Accuracy on train set: {correct / len(cnn.train_labels):.4f}")
 
