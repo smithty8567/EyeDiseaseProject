@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from os import walk
+
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from torchvision import datasets, transforms
 from torchvision.transforms import v2
 from torch.utils.data import Dataset, DataLoader
@@ -51,6 +53,8 @@ class CNN(Dataset):
         loader = DataLoader(df, batch_size=len(df), shuffle=True)
         images, labels = next(iter(loader))
 
+        self.unique_labels = ["cataract","diabetic_retinopathy","glaucoma","normal"]
+
         self.train_images = images.view(-1,1,128,128)
         self.train_labels = labels
 
@@ -73,24 +77,23 @@ class EyeDisease(nn.Module):
         super(EyeDisease, self).__init__()
         self.in_to_h1 = nn.Conv2d(1, 16, (5, 5), padding=(2, 2))  # 16 x 128 x 128
         # Maxpool2d -> 16 x 64 x 64
-        self.h1_to_h2 = nn.Conv2d(16, 8, (3, 3), padding=(1, 1))  # 16 x 64 x 64
-        # Maxpool2d -> 16 x 32 x 32
-        #self.h2_to_h3 = nn.Conv2d(16, 8, (3, 3), padding=(1, 1))  # 8 x 32 x 32
+        self.h1_to_h2 = nn.Conv2d(16, 8, (3, 3), padding=(1, 1))  # 8 x 64 x 64
+        # Maxpool2d -> 8 x 32 x 32
+
         self.h3_to_h4 = nn.Linear(8*32*32, 8) # 8
         self.h4_to_out = nn.Linear(8, 4)  # 4
 
     def forward(self, x):
         x = F.relu(self.in_to_h1(x))  # 16 x 128 x 128
         x = F.max_pool2d(x, (2, 2))  # 16 x 64 x 64
-        x = F.relu(self.h1_to_h2(x))  # 16 x 64 x 64
-        x = F.max_pool2d(x, (2, 2))  # 16 x 32 x 32
-        #x = F.relu(self.h2_to_h3(x)) # 8 x 32 x 32
+        x = F.relu(self.h1_to_h2(x))  # 8 x 64 x 64
+        x = F.max_pool2d(x, (2, 2))  # 8 x 32 x 32
         x = torch.flatten(x, 1)
         x = F.relu(self.h3_to_h4(x))  # 8
         return self.h4_to_out(x) # 4
 
 
-def trainNN(epochs=15, batch_size=16, lr=0.002, display_test_acc=True):
+def trainNN(epochs=10, batch_size=16, lr=0.001, display_test_acc=True):
     # load dataset
     cnn = CNN()
 
@@ -114,6 +117,7 @@ def trainNN(epochs=15, batch_size=16, lr=0.002, display_test_acc=True):
     for epoch in range(epochs):
         print(f"Epoch {epoch + 1} of {epochs}")
         for _, data in enumerate(tqdm(cnn_loader)):
+            number_classify.train()
 
             x, y = data
 
@@ -145,5 +149,9 @@ def trainNN(epochs=15, batch_size=16, lr=0.002, display_test_acc=True):
                 correct = (predictions == cnn.test_labels).sum().item()
                 print(f"Accuracy on test set: {correct / len(cnn.test_labels):.4f}")
     #return number_classify()
+    cm = confusion_matrix(cnn.test_labels, predictions)
+    disp = ConfusionMatrixDisplay(cm, display_labels=cnn.unique_labels)
+    disp.plot()
+    plt.show()
 
-trainNN()
+trainNN(epochs = 15)
