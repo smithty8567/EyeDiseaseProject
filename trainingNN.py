@@ -15,33 +15,48 @@ from tqdm import tqdm
 
 class CNN(Dataset):
     def __init__(self):
-        fileDir = "normalizedSize"
 
-        # Transforms images in grayscale and to a tensor to be able to load into dataloader
-        transform = v2.Compose([
+        ####Check fileDir name to be correct
+        fileDir = "normalizedSize/normalizedSize"
+
+        # Transforms images in grayscale and to a tensor with random transforms to "create" new data
+        transform_test = v2.Compose([
             v2.Grayscale(num_output_channels=1),
             v2.RandomHorizontalFlip(p=0.25),
             v2.RandomVerticalFlip(p=0.25),
-            v2.RandomRotation(degrees=360),
+            v2.RandomRotation(degrees=15),
             #v2.RandomInvert(p=0.2),
-            v2.ToTensor(),  # Convert PIL image to Tensor
+            v2.ToImage(),  # Convert PIL image to Tensor
+            v2.ToDtype(torch.float32, scale=True),
             v2.Normalize(mean=[0], std=[1])
-            # Add other transforms here, like normalization
+
+
+        ])
+        # Transforms images in grayscale and to a tensor to be able to load into dataloader
+        transform = v2.Compose([
+            v2.Grayscale(num_output_channels=1),
+
+            v2.ToImage(),  # Convert PIL image to Tensor
+            v2.ToDtype(torch.float32, scale=True),
+            v2.Normalize(mean=[0], std=[1])
+
+
         ])
         df = datasets.ImageFolder(fileDir, transform=transform)
+        test_df = datasets.ImageFolder(fileDir, transform=transform_test)
 
-        loader = DataLoader(df, batch_size=len(df), shuffle=False)
+        loader = DataLoader(test_df, batch_size=len(test_df), shuffle=False)
+        test_images, test_labels = next(iter(loader))
+
+        loader = DataLoader(df, batch_size=len(df), shuffle=True)
         images, labels = next(iter(loader))
 
         self.train_images = images.view(-1,1,128,128)
-        #print(self.train_numbers.size())
         self.train_labels = labels
 
-        # # Standard deviation of all columns
-        # std_all = self.train_images.std()
-        # print("Standard deviation of all columns:\n", std_all)
-        #print(self.train_labels.size())
-        #exit(10)
+        self.test_images = test_images.view(-1, 1, 128, 128)
+        self.test_labels = test_labels
+
 
         self.len = len(self.train_labels)
 
@@ -58,22 +73,24 @@ class EyeDisease(nn.Module):
         super(EyeDisease, self).__init__()
         self.in_to_h1 = nn.Conv2d(1, 16, (5, 5), padding=(2, 2))  # 16 x 128 x 128
         # Maxpool2d -> 16 x 64 x 64
-        self.h1_to_h2 = nn.Conv2d(16, 8, (3, 3), padding=(1, 1))  # 8 x 64 x 64
-        # Maxpool2d -> 8 x 32 x 32
-        self.h2_to_h3 = nn.Linear(8*32*32, 8) #
-        self.h3_to_out = nn.Linear(8, 4)  #
+        self.h1_to_h2 = nn.Conv2d(16, 8, (3, 3), padding=(1, 1))  # 16 x 64 x 64
+        # Maxpool2d -> 16 x 32 x 32
+        #self.h2_to_h3 = nn.Conv2d(16, 8, (3, 3), padding=(1, 1))  # 8 x 32 x 32
+        self.h3_to_h4 = nn.Linear(8*32*32, 8) # 8
+        self.h4_to_out = nn.Linear(8, 4)  # 4
 
     def forward(self, x):
         x = F.relu(self.in_to_h1(x))  # 16 x 128 x 128
         x = F.max_pool2d(x, (2, 2))  # 16 x 64 x 64
-        x = F.relu(self.h1_to_h2(x))  # 8 x 64 x 64
-        x = F.max_pool2d(x, (2, 2))  # 8 x 32 x 32
+        x = F.relu(self.h1_to_h2(x))  # 16 x 64 x 64
+        x = F.max_pool2d(x, (2, 2))  # 16 x 32 x 32
+        #x = F.relu(self.h2_to_h3(x)) # 8 x 32 x 32
         x = torch.flatten(x, 1)
-        x = F.relu(self.h2_to_h3(x))  # 8
-        return self.h3_to_out(x) # 4
+        x = F.relu(self.h3_to_h4(x))  # 8
+        return self.h4_to_out(x) # 4
 
 
-def trainNN(epochs=15, batch_size=16, lr=0.002, display_test_acc=False):
+def trainNN(epochs=15, batch_size=16, lr=0.002, display_test_acc=True):
     # load dataset
     cnn = CNN()
 
@@ -115,12 +132,18 @@ def trainNN(epochs=15, batch_size=16, lr=0.002, display_test_acc=False):
 
             running_loss += loss.item()
         print(f"Running loss for epoch {epoch + 1}: {running_loss:.4f}")
+
         running_loss = 0.0
-        # if display_test_acc:
-        with torch.no_grad():
-            predictions = torch.argmax(number_classify(cnn.train_images), dim=1)  # Get the prediction
-            correct = (predictions == cnn.train_labels).sum().item()
-            print(f"Accuracy on train set: {correct / len(cnn.train_labels):.4f}")
-    return number_classify()
+
+        predictions = torch.argmax(number_classify(cnn.train_images), dim=1)  # Get the prediction
+        correct = (predictions == cnn.train_labels).sum().item()
+        print(f"Accuracy on train set: {correct / len(cnn.train_labels):.4f}")
+        if display_test_acc:
+            with torch.no_grad():
+                number_classify.eval()
+                predictions = torch.argmax(number_classify(cnn.test_images), dim=1)  # Get the prediction
+                correct = (predictions == cnn.test_labels).sum().item()
+                print(f"Accuracy on test set: {correct / len(cnn.test_labels):.4f}")
+    #return number_classify()
 
 trainNN()
