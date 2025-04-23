@@ -13,6 +13,7 @@ from torch import nn
 from torch.nn import functional as F
 import pandas as pd
 from tqdm import tqdm
+import SaveLoad
 
 
 class CNN(Dataset):
@@ -153,5 +154,9 @@ def trainNN(epochs=10, batch_size=16, lr=0.001, display_test_acc=True):
     disp = ConfusionMatrixDisplay(cm, display_labels=cnn.unique_labels)
     disp.plot()
     plt.show()
+    return number_classify
 
-trainNN(epochs = 15)
+#CNN = trainNN(epochs = 3)
+CNN = SaveLoad.load()
+CNN.eval()
+print(CNN)
