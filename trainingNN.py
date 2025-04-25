@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from os import walk
-
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.model_selection import train_test_split
 from torchvision import datasets, transforms
@@ -27,7 +26,7 @@ class CNN(Dataset):
         transform = v2.Compose([
             v2.ToImage(),  # Convert PIL image to Tensor
             v2.ToDtype(torch.float32, scale=True),
-            v2.Normalize(mean=[0], std=[1])
+            v2.Normalize(mean=[.4209,.2807,.1728], std=[.2931,.2173,.1644])
 
 
         ])
