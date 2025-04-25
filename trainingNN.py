@@ -6,6 +6,7 @@ import matplotlib.image as mpimg
 from os import walk
 
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from sklearn.model_selection import train_test_split
 from torchvision import datasets, transforms
 from torchvision.transforms import v2
 from torch.utils.data import Dataset, DataLoader
@@ -20,20 +21,8 @@ class CNN(Dataset):
     def __init__(self):
 
         ####Check fileDir name to be correct
-        fileDir = "normalizedSize/normalizedSize"
+        fileDir = "normalizedSizeColor/normalizedSizeColor"
 
-        # Transforms images in grayscale and to a tensor with random transforms to "create" new data
-        transform_test = v2.Compose([
-            v2.RandomHorizontalFlip(p=0.25),
-            v2.RandomVerticalFlip(p=0.25),
-            v2.RandomRotation(degrees=15),
-            #v2.RandomInvert(p=0.2),
-            v2.ToImage(),  # Convert PIL image to Tensor
-            v2.ToDtype(torch.float32, scale=True),
-            v2.Normalize(mean=[0], std=[1])
-
-
-        ])
         # Transforms images in grayscale and to a tensor to be able to load into dataloader
         transform = v2.Compose([
             v2.ToImage(),  # Convert PIL image to Tensor
@@ -43,21 +32,16 @@ class CNN(Dataset):
 
         ])
         df = datasets.ImageFolder(fileDir, transform=transform)
-        test_df = datasets.ImageFolder(fileDir, transform=transform_test)
-
-        loader = DataLoader(test_df, batch_size=len(test_df), shuffle=False)
-        test_images, test_labels = next(iter(loader))
 
         loader = DataLoader(df, batch_size=len(df), shuffle=True)
         images, labels = next(iter(loader))
 
         self.unique_labels = ["cataract","diabetic_retinopathy","glaucoma","normal"]
 
-        self.train_images = images.view(-1,1,128,128)
+        self.train_images = images.view(-1,3,128,128)
         self.train_labels = labels
 
-        self.test_images = test_images.view(-1, 1, 128, 128)
-        self.test_labels = test_labels
+        self.train_images, self.valid_images, self.train_labels, self.valid_labels = train_test_split(self.train_images, self.train_labels, test_size=0.2)
 
 
         self.len = len(self.train_labels)
@@ -73,12 +57,12 @@ class EyeDisease(nn.Module):
     def __init__(self):
         # Call the constructor of the super class
         super(EyeDisease, self).__init__()
-        self.in_to_h1 = nn.Conv2d(1, 20, (5, 5), padding=(2, 2))  # 16 x 128 x 128
+        self.in_to_h1 = nn.Conv2d(3, 16, (5, 5), padding=(2, 2))  # 16 x 128 x 128
         # Maxpool2d -> 16 x 64 x 64
-        self.h1_to_h2 = nn.Conv2d(20, 10, (3, 3), padding=(1, 1))  # 8 x 64 x 64
+        self.h1_to_h2 = nn.Conv2d(16, 8, (3, 3), padding=(1, 1))  # 8 x 64 x 64
         # Maxpool2d -> 8 x 32 x 32
 
-        self.h3_to_h4 = nn.Linear(10*32*32, 8) # 8
+        self.h3_to_h4 = nn.Linear(8*32*32, 8) # 8
         self.h4_to_out = nn.Linear(8, 4)  # 4
 
     def forward(self, x):
@@ -102,20 +86,20 @@ def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
     #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # create CNN
-    number_classify = EyeDisease()#.to(device)
-    print(f"Total parameters: {sum(param.numel() for param in number_classify.parameters())}")
+    disease_classify = EyeDisease()#.to(device)
+    print(f"Total parameters: {sum(param.numel() for param in disease_classify.parameters())}")
 
     # loss function
     cross_entropy = nn.CrossEntropyLoss()
 
     # Use Adam Optimizer
-    optimizer = torch.optim.Adam(number_classify.parameters(), lr=lr)
+    optimizer = torch.optim.Adam(disease_classify.parameters(), lr=lr)
 
     running_loss = 0.0
     for epoch in range(epochs):
         print(f"Epoch {epoch + 1} of {epochs}")
         for _, data in enumerate(tqdm(cnn_loader)):
-            number_classify.train()
+            disease_classify.train()
 
             x, y = data
 
@@ -124,7 +108,7 @@ def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
 
             optimizer.zero_grad()
 
-            output = number_classify(x)
+            output = disease_classify(x)
 
             loss = cross_entropy(output, y)
 
@@ -137,23 +121,22 @@ def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
 
         running_loss = 0.0
 
-        predictions = torch.argmax(number_classify(cnn.train_images), dim=1)  # Get the prediction
+        predictions = torch.argmax(disease_classify(cnn.train_images), dim=1)  # Get the prediction
         correct = (predictions == cnn.train_labels).sum().item()
         print(f"Accuracy on train set: {correct / len(cnn.train_labels):.4f}")
         if display_test_acc:
             with torch.no_grad():
-                number_classify.eval()
-                predictions = torch.argmax(number_classify(cnn.test_images), dim=1)  # Get the prediction
-                correct = (predictions == cnn.test_labels).sum().item()
-                print(f"Accuracy on test set: {correct / len(cnn.test_labels):.4f}")
-    #return number_classify()
-    cm = confusion_matrix(cnn.test_labels, predictions)
+                disease_classify.eval()
+                predictions = torch.argmax(disease_classify(cnn.valid_images), dim=1)  # Get the prediction
+                correct = (predictions == cnn.valid_labels).sum().item()
+                print(f"Accuracy on test set: {correct / len(cnn.valid_labels):.4f}")
+    cm = confusion_matrix(cnn.valid_labels, predictions)
     disp = ConfusionMatrixDisplay(cm, display_labels=cnn.unique_labels)
     disp.plot()
     plt.show()
-    return number_classify
+    return disease_classify
 
-CNN = trainNN(epochs = 15, batch_size=32)
+CNN = trainNN(epochs = 20, batch_size=32)
 # CNN = SaveLoad.load()
 # CNN.eval()
 # print(CNN)
