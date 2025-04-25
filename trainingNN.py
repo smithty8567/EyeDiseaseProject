@@ -76,12 +76,12 @@ class EyeDisease(nn.Module):
     def __init__(self):
         # Call the constructor of the super class
         super(EyeDisease, self).__init__()
-        self.in_to_h1 = nn.Conv2d(1, 16, (5, 5), padding=(2, 2))  # 16 x 128 x 128
+        self.in_to_h1 = nn.Conv2d(1, 20, (5, 5), padding=(2, 2))  # 16 x 128 x 128
         # Maxpool2d -> 16 x 64 x 64
-        self.h1_to_h2 = nn.Conv2d(16, 8, (3, 3), padding=(1, 1))  # 8 x 64 x 64
+        self.h1_to_h2 = nn.Conv2d(20, 10, (3, 3), padding=(1, 1))  # 8 x 64 x 64
         # Maxpool2d -> 8 x 32 x 32
 
-        self.h3_to_h4 = nn.Linear(8*32*32, 8) # 8
+        self.h3_to_h4 = nn.Linear(10*32*32, 8) # 8
         self.h4_to_out = nn.Linear(8, 4)  # 4
 
     def forward(self, x):
@@ -94,7 +94,7 @@ class EyeDisease(nn.Module):
         return self.h4_to_out(x) # 4
 
 
-def trainNN(epochs=10, batch_size=16, lr=0.001, display_test_acc=True):
+def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
     # load dataset
     cnn = CNN()
 
@@ -156,7 +156,7 @@ def trainNN(epochs=10, batch_size=16, lr=0.001, display_test_acc=True):
     plt.show()
     return number_classify
 
-#CNN = trainNN(epochs = 3)
-CNN = SaveLoad.load()
-CNN.eval()
-print(CNN)
+CNN = trainNN(epochs = 15, batch_size=32)
+# CNN = SaveLoad.load()
+# CNN.eval()
+# print(CNN)
