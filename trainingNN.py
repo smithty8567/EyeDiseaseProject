@@ -24,7 +24,6 @@ class CNN(Dataset):
 
         # Transforms images in grayscale and to a tensor with random transforms to "create" new data
         transform_test = v2.Compose([
-            v2.Grayscale(num_output_channels=1),
             v2.RandomHorizontalFlip(p=0.25),
             v2.RandomVerticalFlip(p=0.25),
             v2.RandomRotation(degrees=15),
@@ -37,8 +36,6 @@ class CNN(Dataset):
         ])
         # Transforms images in grayscale and to a tensor to be able to load into dataloader
         transform = v2.Compose([
-            v2.Grayscale(num_output_channels=1),
-
             v2.ToImage(),  # Convert PIL image to Tensor
             v2.ToDtype(torch.float32, scale=True),
             v2.Normalize(mean=[0], std=[1])
