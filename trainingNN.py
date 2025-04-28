@@ -35,6 +35,7 @@ class CNN(Dataset):
         loader = DataLoader(df, batch_size=len(df), shuffle=True)
         images, labels = next(iter(loader))
 
+        # Labels for 4 type classification
         self.unique_labels = ["cataract","diabetic_retinopathy","glaucoma","normal"]
 
         self.train_images = images.view(-1,3,256,256)
@@ -56,20 +57,19 @@ class EyeDisease(nn.Module):
     def __init__(self):
         # Call the constructor of the super class
         super(EyeDisease, self).__init__()
-        self.in_to_h1 = nn.Conv2d(3, 32, (5, 5), padding=(2, 2))  # 16 x 128 x 128
+        self.in_to_h1 = nn.Conv2d(3, 32, (5, 5), padding=(2, 2))  # 32 x 256 x 256
+        # Maxpool2d -> 32 x 128 x 128
+        self.h1_to_h2 = nn.Conv2d(32, 16, (3, 3), padding=(1, 1))  # 16 x 128 x 128
         # Maxpool2d -> 16 x 64 x 64
-        self.h1_to_h2 = nn.Conv2d(32, 16, (3, 3), padding=(1, 1))  # 8 x 64 x 64
-        # Maxpool2d -> 8 x 32 x 32
         self.h3_to_h4 = nn.Linear(16*64*64, 8) # 8
         self.h4_to_out = nn.Linear(8, 4)  # 4
 
     def forward(self, x):
-        x = F.relu(self.in_to_h1(x))  # 16 x 128 x 128
+        x = F.relu(self.in_to_h1(x))  # 32 x 256 x 256
         x = F.dropout(x, p=.1)
+        x = F.max_pool2d(x, (2, 2))  # 32 x 128 x 128
+        x = F.relu(self.h1_to_h2(x))  # 16 x 128 x 128
         x = F.max_pool2d(x, (2, 2))  # 16 x 64 x 64
-        x = F.relu(self.h1_to_h2(x))  # 8 x 64 x 64
-        #x = F.dropout(x, p=.1)
-        x = F.max_pool2d(x, (2, 2))  # 8 x 32 x 32
         x = torch.flatten(x, 1)
         x = F.relu(self.h3_to_h4(x))  # 8
         return self.h4_to_out(x) # 4
@@ -93,7 +93,7 @@ def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
     cross_entropy = nn.CrossEntropyLoss()
 
     # Use Adam Optimizer
-    optimizer = torch.optim.Adam(disease_classify.parameters(), lr=lr, weight_decay=1e-5)
+    optimizer = torch.optim.Adam(disease_classify.parameters(), lr=lr)#, weight_decay=1e-5)
 
     running_loss = 0.0
     for epoch in range(epochs):
@@ -144,7 +144,7 @@ def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
     plt.show()
     return disease_classify
 
-CNN = trainNN(epochs = 50, batch_size=32)
+CNN = trainNN(epochs = 20, batch_size=32)
 # CNN = SaveLoad.load()
 # CNN.eval()
 # print(CNN)
