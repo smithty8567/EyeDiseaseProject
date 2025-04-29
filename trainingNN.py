@@ -21,6 +21,7 @@ class CNN(Dataset):
 
         ####Check fileDir name to be correct
         fileDir = "normalizedSizeColor256"
+        # fileDir = "normalizedSizeColor256Binary"
 
         # Transforms images in grayscale and to a tensor to be able to load into dataloader
         transform = v2.Compose([
@@ -37,6 +38,9 @@ class CNN(Dataset):
 
         # Labels for 4 type classification
         self.unique_labels = ["cataract","diabetic_retinopathy","glaucoma","normal"]
+
+        # # Labels for Binary classification
+        # self.unique_labels = ["glaucoma", "normal"]
 
         self.train_images = images.view(-1,3,256,256)
         self.train_labels = labels
@@ -62,7 +66,8 @@ class EyeDisease(nn.Module):
         self.h1_to_h2 = nn.Conv2d(32, 16, (3, 3), padding=(1, 1))  # 16 x 128 x 128
         # Maxpool2d -> 16 x 64 x 64
         self.h3_to_h4 = nn.Linear(16*64*64, 8) # 8
-        self.h4_to_out = nn.Linear(8, 4)  # 4
+        self.h4_to_out = nn.Linear(8, 4)  # 4 Layer for 4 classes
+        # self.h4_to_out = nn.Linear(8, 2)  # 2 Layer for Binary Classification
 
     def forward(self, x):
         x = F.relu(self.in_to_h1(x))  # 32 x 256 x 256
@@ -75,7 +80,7 @@ class EyeDisease(nn.Module):
         return self.h4_to_out(x) # 4
 
 
-def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
+def trainNN(epochs=10, batch_size=32, lr=0.0005, display_test_acc=True):
     # load dataset
     cnn = CNN()
 
@@ -93,7 +98,7 @@ def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
     cross_entropy = nn.CrossEntropyLoss()
 
     # Use Adam Optimizer
-    optimizer = torch.optim.Adam(disease_classify.parameters(), lr=lr)#, weight_decay=1e-5)
+    optimizer = torch.optim.Adam(disease_classify.parameters(), lr=lr, weight_decay=1e-5)
 
     running_loss = 0.0
     for epoch in range(epochs):
@@ -137,14 +142,15 @@ def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
                     all_results.extend(result.cpu()) #adding the calculated predictions(result) from the batch to the array
                     if result == cnn.valid_labels[i]:
                         sums += 1 / len(cnn.valid_images)
-                print(f"Accuracy on test set: {sums:.4f}")
+                print(f"Accuracy on validation set: {sums:.4f}")
     cm = confusion_matrix(cnn.valid_labels, all_results)
     disp = ConfusionMatrixDisplay(cm, display_labels=cnn.unique_labels)
     disp.plot()
     plt.show()
     return disease_classify
 
-CNN = trainNN(epochs = 20, batch_size=32)
+CNN = trainNN(epochs = 25, batch_size=32)
+SaveLoad.save(CNN, path = "4typeClassification.pth")
 # CNN = SaveLoad.load()
 # CNN.eval()
 # print(CNN)
