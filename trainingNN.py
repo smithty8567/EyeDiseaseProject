@@ -35,7 +35,10 @@ class CNN(Dataset):
 
         loader = DataLoader(df, batch_size=len(df), shuffle=True)
         images, labels = next(iter(loader))
-
+        std = [torch.std(images[0,:,:]), torch.std(images[1,:,:]), torch.std(images[2,:,:])]
+        mean = [torch.mean(images[0,:,:]), torch.mean(images[1,:,:]), torch.mean(images[2,:,:])]
+        print(f"std:{std}")
+        print(f"mean:{mean}")
         # Labels for 4 type classification
         self.unique_labels = ["cataract","diabetic_retinopathy","glaucoma","normal"]
 
