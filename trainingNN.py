@@ -1,9 +1,6 @@
-import os
 import torch
-import numpy as np
+import os
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-from os import walk
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.model_selection import train_test_split
 from torchvision import datasets, transforms
@@ -11,7 +8,6 @@ from torchvision.transforms import v2
 from torch.utils.data import Dataset, DataLoader
 from torch import nn
 from torch.nn import functional as F
-import pandas as pd
 from tqdm import tqdm
 import SaveLoad
 
@@ -27,7 +23,7 @@ class CNN(Dataset):
         transform = v2.Compose([
             v2.ToImage(),  # Convert PIL image to Tensor
             v2.ToDtype(torch.float32, scale=True),
-            v2.Normalize(mean=[.4209,.2807,.1728], std=[.2931,.2173,.1644])
+            v2.Normalize(mean=[.4718,-0.7052,-0.1035], std=[.6136,.6533,.5374])
 
 
         ])
@@ -35,10 +31,12 @@ class CNN(Dataset):
 
         loader = DataLoader(df, batch_size=len(df), shuffle=True)
         images, labels = next(iter(loader))
-        std = [torch.std(images[0,:,:]), torch.std(images[1,:,:]), torch.std(images[2,:,:])]
-        mean = [torch.mean(images[0,:,:]), torch.mean(images[1,:,:]), torch.mean(images[2,:,:])]
-        print(f"std:{std}")
-        print(f"mean:{mean}")
+
+        # std = [torch.std(images[0,:,:]), torch.std(images[1,:,:]), torch.std(images[2,:,:])]
+        # mean = [torch.mean(images[0,:,:]), torch.mean(images[1,:,:]), torch.mean(images[2,:,:])]
+        # print(f"std:{std}")
+        # print(f"mean:{mean}")
+
         # Labels for 4 type classification
         self.unique_labels = ["cataract","diabetic_retinopathy","glaucoma","normal"]
 
@@ -83,7 +81,7 @@ class EyeDisease(nn.Module):
         return self.h4_to_out(x) # 4
 
 
-def trainNN(epochs=10, batch_size=32, lr=0.0005, display_test_acc=True):
+def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
     # load dataset
     cnn = CNN()
 
@@ -146,14 +144,49 @@ def trainNN(epochs=10, batch_size=32, lr=0.0005, display_test_acc=True):
                     if result == cnn.valid_labels[i]:
                         sums += 1 / len(cnn.valid_images)
                 print(f"Accuracy on validation set: {sums:.4f}")
-    cm = confusion_matrix(cnn.valid_labels, all_results)
+    cm = confusion_matrix(cnn.valid_labels, all_results,normalize='true')
     disp = ConfusionMatrixDisplay(cm, display_labels=cnn.unique_labels)
     disp.plot()
     plt.show()
     return disease_classify
 
-CNN = trainNN(epochs = 25, batch_size=32)
-SaveLoad.save(CNN, path = "4typeClassification.pth")
+def testNN(savedNN = "4typeClassification.pth"):
+    # load dataset
+    cnn = CNN()
+
+    eyeNN = EyeDisease()
+
+    # create data loader
+    eyeNN.load_state_dict(torch.load(savedNN))
+    eyeNN.eval()
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    with torch.no_grad():
+        sums = 0
+        all_results = []
+        for i in range(len(cnn.valid_images)):
+            image = cnn.valid_images[i].to(device)
+            result = torch.argmax(eyeNN(image.view(-1, 3, 256, 256)).to(device), dim=1)
+            all_results.extend(result.cpu())  # adding the calculated predictions(result) from the batch to the array
+            if result == cnn.valid_labels[i]:
+                sums += 1 / len(cnn.valid_images)
+        print(f"Accuracy on validation set: {sums:.4f}")
+
+
+    cm = confusion_matrix(cnn.valid_labels, all_results)
+    disp = ConfusionMatrixDisplay(cm, display_labels=cnn.unique_labels)
+    disp.plot()
+    plt.show()
+
+
+
+
+
+### Current saved network was trained with 25 epochs, train with 50 if you want possible better results
+# CNN = trainNN(epochs = 50, batch_size=16)
+# SaveLoad.save(CNN, path = "4typeClassification.pth")
+testNN()
 # CNN = SaveLoad.load()
 # CNN.eval()
 # print(CNN)
