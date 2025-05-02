@@ -146,6 +146,7 @@ def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
     cm = confusion_matrix(cnn.valid_labels, all_results)
     disp = ConfusionMatrixDisplay(cm, display_labels=cnn.unique_labels)
     disp.plot()
+    plt.savefig('confusion_matrix.png')
     plt.show()
     return disease_classify
 
