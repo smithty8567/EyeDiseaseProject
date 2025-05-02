@@ -150,35 +150,6 @@ def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
     plt.show()
     return disease_classify
 
-def testNN(savedNN = "4typeClassification.pth"):
-    # load dataset
-    cnn = CNN()
-
-    eyeNN = EyeDisease()
-
-    # create data loader
-    eyeNN.load_state_dict(torch.load(savedNN))
-    eyeNN.eval()
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    with torch.no_grad():
-        sums = 0
-        all_results = []
-        for i in range(len(cnn.valid_images)):
-            image = cnn.valid_images[i].to(device)
-            result = torch.argmax(eyeNN(image.view(-1, 3, 256, 256)).to(device), dim=1)
-            all_results.extend(result.cpu())  # adding the calculated predictions(result) from the batch to the array
-            if result == cnn.valid_labels[i]:
-                sums += 1 / len(cnn.valid_images)
-        print(f"Accuracy on validation set: {sums:.4f}")
-
-
-    cm = confusion_matrix(cnn.valid_labels, all_results)
-    disp = ConfusionMatrixDisplay(cm, display_labels=cnn.unique_labels)
-    disp.plot()
-    plt.show()
-
 
 
 
@@ -186,7 +157,6 @@ def testNN(savedNN = "4typeClassification.pth"):
 ### Current saved network was trained with 25 epochs, train with 50 if you want possible better results
 # CNN = trainNN(epochs = 50, batch_size=16)
 # SaveLoad.save(CNN, path = "4typeClassification.pth")
-testNN()
 # CNN = SaveLoad.load()
 # CNN.eval()
 # print(CNN)
