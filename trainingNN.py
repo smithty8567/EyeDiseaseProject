@@ -10,6 +10,7 @@ from torch import nn
 from torch.nn import functional as F
 from tqdm import tqdm
 import SaveLoad
+import canny
 
 
 class CNN(Dataset):
@@ -23,8 +24,10 @@ class CNN(Dataset):
         transform = v2.Compose([
             v2.ToImage(),  # Convert PIL image to Tensor
             v2.ToDtype(torch.float32, scale=True),
-            v2.Normalize(mean=[.4718,-0.7052,-0.1035], std=[.6136,.6533,.5374])
-
+            v2.Normalize(mean=[.4718,-0.7052,-0.1035], std=[.6136,.6533,.5374]),
+            v2.RandomVerticalFlip(.1),
+            v2.RandomHorizontalFlip(.1),
+            v2.RandomRotation(15)
 
         ])
         df = datasets.ImageFolder(fileDir, transform=transform)
@@ -42,8 +45,8 @@ class CNN(Dataset):
 
         # # Labels for Binary classification
         # self.unique_labels = ["glaucoma", "normal"]
-
-        self.train_images = images.view(-1,3,256,256)
+        processed_images = torch.stack([canny.addCannyLayer(image) for image in images])
+        self.train_images = processed_images
         self.train_labels = labels
 
         self.train_images, self.valid_images, self.train_labels, self.valid_labels = train_test_split(self.train_images, self.train_labels, test_size=0.2)
@@ -62,7 +65,7 @@ class EyeDisease(nn.Module):
     def __init__(self):
         # Call the constructor of the super class
         super(EyeDisease, self).__init__()
-        self.in_to_h1 = nn.Conv2d(3, 32, (5, 5), padding=(2, 2))  # 32 x 256 x 256
+        self.in_to_h1 = nn.Conv2d(4, 32, (5, 5), padding=(2, 2))  # 32 x 256 x 256
         # Maxpool2d -> 32 x 128 x 128
         self.h1_to_h2 = nn.Conv2d(32, 16, (3, 3), padding=(1, 1))  # 16 x 128 x 128
         # Maxpool2d -> 16 x 64 x 64
@@ -128,7 +131,7 @@ def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
             sums = 0
             for i in range(len(cnn.train_images)):
                 image = cnn.train_images[i].to(device)
-                result = torch.argmax(disease_classify(image.view(-1, 3, 256, 256)).to(device),dim=1)
+                result = torch.argmax(disease_classify(image.view(-1, 4, 256, 256)).to(device),dim=1)
                 if result == cnn.train_labels[i]:
                     sums += 1/len(cnn.train_images)
             print(f"Accuracy on train set: {sums:.4f}")
@@ -139,15 +142,15 @@ def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
                 all_results = []
                 for i in range(len(cnn.valid_images)):
                     image = cnn.valid_images[i].to(device)
-                    result = torch.argmax(disease_classify(image.view(-1, 3, 256, 256)).to(device),dim=1)
+                    result = torch.argmax(disease_classify(image.view(-1, 4, 256, 256)).to(device),dim=1)
                     all_results.extend(result.cpu()) #adding the calculated predictions(result) from the batch to the array
                     if result == cnn.valid_labels[i]:
                         sums += 1 / len(cnn.valid_images)
                 print(f"Accuracy on validation set: {sums:.4f}")
-    cm = confusion_matrix(cnn.valid_labels, all_results,normalize='true')
-    disp = ConfusionMatrixDisplay(cm, display_labels=cnn.unique_labels)
-    disp.plot()
-    plt.show()
+    # cm = confusion_matrix(cnn.valid_labels, all_results,normalize='true')
+    # disp = ConfusionMatrixDisplay(cm, display_labels=cnn.valid_labels)
+    # disp.plot()
+    # plt.show()
     return disease_classify
 
 
@@ -155,5 +158,5 @@ def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
 
 
 ### Current saved network was trained with 25 epochs, train with 50 if you want possible better results
-# CNN = trainNN(epochs = 50, batch_size=16)
-# SaveLoad.save(CNN, path = "4typeClassification.pth")
+CNN = trainNN(epochs = 50, batch_size=16)
+SaveLoad.save(CNN, path = "4typeClassification.pth")
