@@ -18,7 +18,6 @@ class CNN(Dataset):
 
         ####Check fileDir name to be correct
         fileDir = "normalizedSizeColor256"
-        # fileDir = "normalizedSizeColor256Binary"
 
         # Transforms images in grayscale and to a tensor to be able to load into dataloader
         transform = v2.Compose([
@@ -43,8 +42,6 @@ class CNN(Dataset):
         # Labels for 4 type classification
         self.unique_labels = ["cataract","diabetic_retinopathy","glaucoma","normal"]
 
-        # # Labels for Binary classification
-        # self.unique_labels = ["glaucoma", "normal"]
         processed_images = torch.stack([canny.addCannyLayer(image) for image in images])
         self.train_images = processed_images
         self.train_labels = labels
@@ -71,7 +68,6 @@ class EyeDisease(nn.Module):
         # Maxpool2d -> 16 x 64 x 64
         self.h3_to_h4 = nn.Linear(16*64*64, 8) # 8
         self.h4_to_out = nn.Linear(8, 4)  # 4 Layer for 4 classes
-        # self.h4_to_out = nn.Linear(8, 2)  # 2 Layer for Binary Classification
 
     def forward(self, x):
         x = F.relu(self.in_to_h1(x))  # 32 x 256 x 256
@@ -147,16 +143,16 @@ def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
                     if result == cnn.valid_labels[i]:
                         sums += 1 / len(cnn.valid_images)
                 print(f"Accuracy on validation set: {sums:.4f}")
-    # cm = confusion_matrix(cnn.valid_labels, all_results,normalize='true')
-    # disp = ConfusionMatrixDisplay(cm, display_labels=cnn.valid_labels)
-    # disp.plot()
-    # plt.show()
+    cm = confusion_matrix(cnn.valid_labels, all_results)
+    disp = ConfusionMatrixDisplay(cm, display_labels=cnn.unique_labels)
+    disp.plot()
+    plt.show()
     return disease_classify
 
 
 
 
 
-### Current saved network was trained with 25 epochs, train with 50 if you want possible better results
-CNN = trainNN(epochs = 50, batch_size=16)
-SaveLoad.save(CNN, path = "4typeClassification.pth")
+### Current saved network was trained with 50 epochs, train with 50 if you want possible better results
+CNN = trainNN(epochs = 2, batch_size=16)
+#SaveLoad.save(CNN, path = "4typeClassification.pth")
