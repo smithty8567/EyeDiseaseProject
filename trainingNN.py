@@ -157,6 +157,3 @@ def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
 ### Current saved network was trained with 25 epochs, train with 50 if you want possible better results
 # CNN = trainNN(epochs = 50, batch_size=16)
 # SaveLoad.save(CNN, path = "4typeClassification.pth")
-# CNN = SaveLoad.load()
-# CNN.eval()
-# print(CNN)
