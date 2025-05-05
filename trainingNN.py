@@ -16,15 +16,13 @@ import canny
 class CNN(Dataset):
     def __init__(self):
 
-        ####Check fileDir name to be correct
+        # Check file directory name to be correct
         fileDir = "normalizedSizeColor256"
-        # fileDir = "normalizedSizeColor256Binary"
 
-        # Transforms images in grayscale and to a tensor to be able to load into dataloader
+        # Transforms images to a tensor to be able to load into dataloader
         transform = v2.Compose([
             v2.ToImage(),  # Convert PIL image to Tensor
             v2.ToDtype(torch.float32, scale=True),
-            #v2.Normalize(mean=[.4718,-0.7052,-0.1035], std=[.6136,.6533,.5374]),
             v2.Normalize(mean=[0,0,0], std=[1,1,1]),
             # v2.RandomVerticalFlip(.1),
             # v2.RandomHorizontalFlip(.1),
@@ -36,20 +34,15 @@ class CNN(Dataset):
         loader = DataLoader(df, batch_size=len(df), shuffle=True)
         images, labels = next(iter(loader))
 
-        # std = [torch.std(images[0,:,:]), torch.std(images[1,:,:]), torch.std(images[2,:,:])]
-        # mean = [torch.mean(images[0,:,:]), torch.mean(images[1,:,:]), torch.mean(images[2,:,:])]
-        # print(f"std:{std}")
-        # print(f"mean:{mean}")
-
-        # Labels for 4 type classification
+        # Labels for the eye classification
         self.unique_labels = ["cataract","diabetic_retinopathy","glaucoma","normal"]
 
-        # # Labels for Binary classification
-        # self.unique_labels = ["glaucoma", "normal"]
+        # adds a canny channel
         processed_images = torch.stack([canny.addCannyLayer(image) for image in images])
         self.train_images = processed_images
         self.train_labels = labels
 
+        # train/test split for the calidation set to have 20% of the original images
         self.train_images, self.valid_images, self.train_labels, self.valid_labels = train_test_split(self.train_images, self.train_labels, test_size=0.2)
 
 
@@ -66,13 +59,13 @@ class EyeDisease(nn.Module):
     def __init__(self):
         # Call the constructor of the super class
         super(EyeDisease, self).__init__()
-        self.in_to_h1 = nn.Conv2d(4, 72, (5, 5), padding=(2, 2))  # 32 x 256 x 256
-        # Maxpool2d -> 32 x 128 x 128
+        self.in_to_h1 = nn.Conv2d(4, 72, (5, 5), padding=(2, 2))  # 72 x 256 x 256
+        # Maxpool2d -> 72 x 128 x 128
         self.h1_to_h2 = nn.Conv2d(72, 16, (3, 3), padding=(1, 1))  # 16 x 128 x 128
         # Maxpool2d -> 16 x 64 x 64
-        self.h3_to_h4 = nn.Linear(16*32*32, 32) # 8
-        self.h4_to_out = nn.Linear(32, 4)  # 4 Layer for 4 classes
-        # self.h4_to_out = nn.Linear(8, 2)  # 2 Layer for Binary Classification
+        # Maxpool2d -> 16 x 32 x 32
+        self.h3_to_h4 = nn.Linear(16*32*32, 32) # 32
+        self.h4_to_out = nn.Linear(32, 4) # 4
 
     def forward(self, x):
         x = self.in_to_h1(x)  # 32 x 256 x 256
@@ -80,9 +73,9 @@ class EyeDisease(nn.Module):
         x = F.max_pool2d(x, (2, 2))  # 32 x 128 x 128
         x = self.h1_to_h2(x)  # 16 x 128 x 128
         x = F.max_pool2d(x, (2, 2))  # 16 x 64 x 64
-        x = F.max_pool2d(x, (2, 2))  # 16 x 64 x 64
+        x = F.max_pool2d(x, (2, 2))  # 16 x 32 x 32
         x = torch.flatten(x, 1)
-        x = F.relu(self.h3_to_h4(x))  # 8
+        x = F.relu(self.h3_to_h4(x))  # 32
         return self.h4_to_out(x) # 4
 
 
@@ -129,6 +122,7 @@ def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
         print(f"Running loss for epoch {epoch + 1}: {running_loss:.4f}")
 
         running_loss = 0.0
+        # runs accuracy check in batches to not overload memory
         if epoch == epochs-1:
             sums = 0
             for i in range(len(cnn.train_images)):
@@ -152,7 +146,7 @@ def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
     cm = confusion_matrix(cnn.valid_labels, all_results)
     disp = ConfusionMatrixDisplay(cm, display_labels=cnn.unique_labels)
     disp.plot()
-    plt.savefig("confMatrix.png")
+    # plt.savefig("confMatrix.png") uncomment to save the confusion matrix
     plt.show()
     return disease_classify
 
@@ -160,6 +154,6 @@ def trainNN(epochs=10, batch_size=32, lr=0.001, display_test_acc=True):
 
 
 
-### Current saved network was trained with 25 epochs, train with 50 if you want possible better results
+
 CNN = trainNN(epochs = 10, batch_size=32)
-SaveLoad.save(CNN, path = "4typeClassification.pth")
+# SaveLoad.save(CNN, path = "4typeClassification.pth") #uncomment to save the neural network
