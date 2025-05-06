@@ -7,7 +7,7 @@ def addCannyLayer(img_tensor):
     np_img = img_tensor.numpy().transpose(1, 2, 0)
 
     #grayscale image
-    gray = cv2.cvtColor(np_img, cv2.COLOR_RGB2GRAY)
+    gray = cv2.cvtColor(np_img, cv2.COLOR_RGB2GRAY).astype(np.uint8)
 
     #do edge detection on grayscale image
     edges = cv2.Canny(gray, 0, 15).astype(np.float32) / 255.0
